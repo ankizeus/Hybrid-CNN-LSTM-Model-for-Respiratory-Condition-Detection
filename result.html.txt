@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Result</title>
+    <style>
+        /* General page styles */
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+
+        h2, h3 {
+            color: #37FF8B; /* Green color for headers */
+        }
+
+        /* Button Styles */
+        .button {
+            --border-right: 6px;
+            --text-stroke-color: rgba(255, 255, 255, 0.6);
+            --animation-color: #37FF8B;
+            --fs-size: 1.5em;
+            letter-spacing: 3px;
+            text-decoration: none;
+            font-size: var(--fs-size);
+            font-family: "Arial";
+            position: relative;
+            text-transform: uppercase;
+            color: black;
+            -webkit-text-stroke: 1px var(--text-stroke-color);
+            background: transparent;
+            border: 2px solid var(--animation-color);
+            padding: 0.7em 2.7em;
+            margin-top: 20px;
+            border-radius: 0.6em;
+            transition: all 0.3s;
+        }
+
+        .button .hover-text {
+            position: absolute;
+            box-sizing: border-box;
+            content: attr(data-text);
+            color: var(--animation-color);
+            width: 0%;
+            inset: 0;
+            border-right: var(--border-right) solid var(--animation-color);
+            overflow: hidden;
+            transition: 0.5s;
+            -webkit-text-stroke: 1px var(--animation-color);
+        }
+
+        .button:hover .hover-text {
+            width: 100%;
+            filter: drop-shadow(0 0 23px var(--animation-color));
+        }
+
+        .button:hover {
+            color: #82ffc9;
+        }
+
+        /* Spectrogram image styling */
+        img {
+            max-width: 80%;
+            height: auto;
+            margin-top: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div>
+        <h2>Prediction Result</h2>
+        <p><strong>Diagnosis:</strong> {{ prediction }}</p>
+        <h3>Spectrogram:</h3>
+        <img src="{{ url_for('static', filename=spectrogram_path) }}" alt="Spectrogram">
+        <br>
+        <!-- Button to go back to the homepage -->
+        <a href="/" class="button">
+            <span class="hover-text" data-text="Upload Another File"></span> Upload Another File
+        </a>
+    </div>
+
+    <script>
+        // Optional: Reset any form or input data on the homepage
+        function resetForm() {
+            // Reset form fields or inputs if needed
+            document.getElementById("patientForm").reset();
+        }
+
+        // Call resetForm() when the page loads if you need to clear anything
+        window.onload = resetForm;
+    </script>
+</body>
+</html>

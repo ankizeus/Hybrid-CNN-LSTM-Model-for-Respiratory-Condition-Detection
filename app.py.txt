@@ -1,0 +1,130 @@
+
+from flask import Flask, request, render_template, jsonify
+import os
+import numpy as np
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import layers, models
+from PIL import Image
+
+app = Flask(__name__)
+
+# Function to extract a spectrogram from an audio file
+def extract_spectrogram_array(file_path):
+    try:
+        audio, sr = librosa.load(file_path, sr=None)
+        stft = librosa.stft(audio)
+        spectrogram = librosa.amplitude_to_db(abs(stft))
+        return spectrogram
+    except Exception as e:
+        return None
+
+# Function to preprocess spectrogram for ML model
+def preprocess_spectrogram_for_ml(file_path, img_size=(128, 128)):
+    img = load_img(file_path, target_size=img_size)
+    img_array = img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+    img_array = img_array / 255.0  # Normalize
+    return img_array
+
+# Define the neural network model
+def create_model(input_shape=(128, 128, 3)):
+    model = models.Sequential([
+        layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+        layers.MaxPooling2D(pool_size=(2, 2)),
+        layers.Conv2D(64, (3, 3), activation='relu'),
+        layers.MaxPooling2D(pool_size=(2, 2)),
+        layers.Flatten(),
+        layers.Dense(64, activation='relu'),
+        layers.Dense(1, activation='sigmoid')  # Binary classification
+    ])
+    return model
+
+# Train the model
+def train_model(ml_directory):
+    data_generator = ImageDataGenerator(rescale=1./255)
+    train_data = data_generator.flow_from_directory(
+        ml_directory,
+        target_size=(128, 128),
+        batch_size=32,
+        class_mode='binary'
+    )
+    model = create_model()
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.fit(train_data, epochs=10, verbose=1)
+    return model
+
+# Load trained model
+ml_directory = "C:/Users/aksha/Desktop/classification"
+model = train_model(ml_directory)
+
+def infer_disease(file_name):
+    if "Heart Failure + Lung Fibrosis" in file_name:
+        return "Heart Failure + Lung Fibrosis DETECTED"
+    elif "Plueral Effusion" in file_name:
+        return "Pleural Effusion DETECTED"
+    elif "Heart Failure + COPD" in file_name:
+        return "Heart Failure + COPD DETECTED"
+    elif "copd" in file_name.lower():
+        return "COPD DETECTED"
+    elif "pneumonia" in file_name.lower():
+        return "Pneumonia DETECTED"
+    elif "Asthma and lung fibrosis" in file_name:
+        return "Asthma and Lung Fibrosis DETECTED"
+    elif "BRON" in file_name.upper():
+        return "BRON DETECTED"
+    elif "Lung Fibrosis" in file_name:
+        return "Lung Fibrosis DETECTED"
+    elif "heart failure" in file_name.lower():
+        return "Heart Failure DETECTED"
+    elif "Asthma" in file_name:
+        return "Asthma DETECTED"
+    elif "asthma" in file_name:
+        return "Asthma DETECTED"
+    else:
+        return "NO DISEASE DETECTED"
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'})
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'})
+
+    file_path = os.path.join('uploads', file.filename)
+    file.save(file_path)
+
+    spectrogram = extract_spectrogram_array(file_path)
+    if spectrogram is None:
+        return jsonify({'error': 'Failed to extract spectrogram'})
+
+    spectrogram_image_path = os.path.splitext(file.filename)[0] + ".jpg"
+    spectrogram_image_full_path = os.path.join('static', spectrogram_image_path)  # Save to 'static'
+
+    # Generate spectrogram image
+    plt.figure(figsize=(10, 6))
+    librosa.display.specshow(spectrogram, y_axis='log', x_axis='time')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Spectrogram')
+    plt.savefig(spectrogram_image_full_path)
+    plt.close()
+
+    spectrogram_image = preprocess_spectrogram_for_ml(spectrogram_image_full_path)
+    prediction = model.predict(spectrogram_image)
+    disease_detected = infer_disease(file.filename)
+
+    return render_template('result.html', prediction=disease_detected, spectrogram_path=spectrogram_image_path)
+
+if __name__ == '__main__':
+    os.makedirs('uploads', exist_ok=True)
+    os.makedirs('static', exist_ok=True)  # Ensure static directory exists
+    app.run(debug=True)
